@@ -16,8 +16,7 @@ void cleanup_window(SDL_Window *window, SDL_Renderer *renderer,
 }
 
 void error(const char *message) {
-  SDL_LogError(SDL_LOG_CATEGORY_ERROR, strcat(": %s\n", message),
-               SDL_GetError());
+  SDL_LogError(SDL_LOG_CATEGORY_ERROR, "%s: %s\n", message, SDL_GetError());
   exit(EXIT_FAILURE);
 }
 
@@ -50,13 +49,15 @@ void init_window(Window *window, int width, int height) {
 }
 
 void build_texture(Window *window, CPU *cpu) {
-  uint32_t *pixels;
-  int pitch;
-  if (!SDL_LockTexture(window->sdl_texture, NULL, (void **)&pixels, &pitch)) {
+  uint32_t *pixels = NULL;
+  uint32_t pitch = 0;
+  if (!SDL_LockTexture(window->sdl_texture, NULL, (void **)&pixels,
+                       (int *)&pitch)) {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SDL_LockTexture Error: %s\n",
                  SDL_GetError());
     exit(EXIT_FAILURE);
   }
+
   for (int y = 0; y < 32; y++) {
     for (int x = 0; x < 64; x++) {
       int index = y * 64 + x;

@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include "loadrom.h"
 #include "screen.h"
+#include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
 #include <stdbool.h>
@@ -19,15 +20,14 @@ int main(int argc, char **argv) {
   CPU cpu;
   Window window;
 
-  init_window(&window, 1024, 512);
+  init_window(&window, 64, 32);
   init_cpu(&cpu);
   load_rom(argv[1], &cpu);
-  cpu.memory[0x200] = 0x00;
-  cpu.memory[0x201] = 0xE0;
 
+  SDL_FRect rect = {0, 0, 64, 32};
   bool done = false;
   while (!done) {
-    // cycle(&cpu);
+    cycle(&cpu);
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_EVENT_QUIT) {
@@ -35,19 +35,15 @@ int main(int argc, char **argv) {
       }
     }
     SDL_SetRenderDrawColor(window.sdl_renderer, 0, 0, 0, 255);
+    SDL_SetRenderLogicalPresentation(window.sdl_renderer, 64, 32,
+                                     SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
     SDL_RenderClear(window.sdl_renderer);
 
     build_texture(&window, &cpu);
 
-    SDL_FRect dest = {
-        0,
-        0,
-        1024,
-        512,
-    };
-    SDL_RenderTexture(window.sdl_renderer, window.sdl_texture, NULL, &dest);
+    SDL_RenderTexture(window.sdl_renderer, window.sdl_texture, NULL, &rect);
     SDL_RenderPresent(window.sdl_renderer);
-    sleep(1);
+    SDL_Delay(16); // ~60fps
   }
 
   window.cleanup(window.sdl_window, window.sdl_renderer, window.sdl_texture);

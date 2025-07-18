@@ -11,11 +11,11 @@ void init_cpu(CPU *cpu) {
   cpu->I = 0;
   cpu->SP = 0;
 
-  memset(cpu->memory, 0, sizeof(uint8_t));
-  memset(cpu->graphics, 0, sizeof(uint8_t));
-  memset(cpu->registers, 0, sizeof(uint8_t));
-  memset(cpu->stack, 0, sizeof(uint8_t));
-  memset(cpu->keys, 0, sizeof(uint8_t));
+  memset(cpu->memory, 0, sizeof(cpu->memory));
+  memset(cpu->graphics, 0, sizeof(cpu->graphics));
+  memset(cpu->registers, 0, sizeof(cpu->registers));
+  memset(cpu->stack, 0, sizeof(cpu->stack));
+  memset(cpu->keys, 0, sizeof(cpu->keys));
 
   srand(time(NULL));
 
@@ -129,10 +129,10 @@ void cycle(CPU *cpu) {
   cpu->opcode = cpu->memory[cpu->PC] << 8 | cpu->memory[cpu->PC + 1];
   printf("%04x\n", cpu->opcode);
 
-  switch (cpu->opcode >> 15) {
+  switch (cpu->opcode >> 12) {
   case 0x0:
     if (cpu->opcode == 0x00E0) {
-      memset(cpu->graphics, 0, sizeof(uint8_t));
+      memset(cpu->graphics, 0, sizeof(cpu->graphics));
     } else if (cpu->opcode == 0x00EE) {
       cpu->SP--;
       cpu->PC = cpu->stack[cpu->SP];
@@ -239,7 +239,7 @@ void cycle(CPU *cpu) {
     break;
   case 0xC:
     cpu->registers[(cpu->opcode & 0x0F00) >> 8] =
-        rand() & (uint8_t)(cpu->opcode & 0x00FF);
+        (rand() % 256) & (cpu->opcode & 0x00FF);
     inc_pc(cpu);
     break;
   case 0xD:
