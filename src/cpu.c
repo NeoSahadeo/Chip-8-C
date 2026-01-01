@@ -21,15 +21,14 @@ void inc_pc(CPU* cpu) {
 
 void cycle(CPU* cpu) {
   uint16_t opcode = cpu->memory[cpu->PC] << 8 | cpu->memory[cpu->PC + 1];
-  uint8_t x = opcode & 0x0F00;
-  uint8_t y = opcode & 0x00F0;
+  uint8_t x = (opcode & 0x0F00) >> 8;
+  uint8_t y = (opcode & 0x00F0) >> 4;
   uint8_t N = opcode & 0x000F;
   uint8_t NN = opcode & 0x00FF;
-  uint8_t NNN = opcode & 0x0FFF;
+  uint16_t NNN = opcode & 0x0FFF;
   inc_pc(cpu);
 
-  printf("%04X\n", opcode);
-  // printf("---%X\n", opcode >> 12);
+  // printf("%04X\n", opcode);
 
   switch (opcode >> 12) {
     case 0x0: {
@@ -139,33 +138,26 @@ void cycle(CPU* cpu) {
       break;
     }
     case 0xD: {
-      uint8_t x_coord = cpu->V[x] % 64;
-      uint8_t y_coord = cpu->V[y] % 32;
+      uint8_t x0 = cpu->V[x] % 64;
+      uint8_t y0 = cpu->V[y] % 32;
       cpu->V[0xF] = 0;
 
-      for (uint16_t row = 0; row < N; row++) {
-        uint8_t data = cpu->memory[cpu->I + row];
+      for (uint8_t row = 0; row < N; row++) {
+        uint8_t sprite_byte = cpu->memory[cpu->I + row];
+        uint8_t y = (y0 + row) % 32;  // wrap vertically
+        uint16_t base = y * 64;
 
         for (uint8_t col = 0; col < 8; col++) {
-          uint8_t pixel = data & (0x80 >> col);
-          uint32_t pitch = (y_coord + row) * 64;
+          if (sprite_byte & (0x80 >> col)) {
+            uint8_t x = (x0 + col) % 64;  // wrap horizontally
+            uint16_t idx = base + x;
 
-          if (pixel) {
-            if (cpu->vram[x_coord + col + pitch]) {
+            if (cpu->vram[idx]) {
               cpu->V[0xF] = 1;
-              cpu->vram[x_coord + col + pitch] = 0;
-            } else if (!cpu->vram[x_coord + col + pitch]) {
-              cpu->vram[x_coord + col + pitch] = 1;
             }
+            cpu->vram[idx] ^= 1;  // XOR toggle
           }
-
-          if (x_coord == 63)
-            break;
-          x_coord++;
         }
-        y_coord++;
-        if (y_coord == 31)
-          break;
       }
       break;
     }
