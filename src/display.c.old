@@ -1,18 +1,33 @@
 #include "include/display.h"
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_render.h>
-#include <SDL3/SDL_video.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "include/cpu.h"
 
-bool get_pixel(uint8_t x, uint8_t y) {
-  return false;
+void clear(Display* d) {
+  memset(d->buffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT);
 }
 
-void set_pixel(uint8_t x, uint8_t y, bool v) {}
+uint8_t get_pixel(Display* d, size_t index) {
+  return d->buffer[index];
+};
 
-DisplayCtx* create_display() {
+void set_pixel(Display* d, size_t index, uint8_t value) {
+  d->buffer[index] = value;
+};
+
+Display* create_display() {
+  Display* display = malloc(sizeof(Display));
+  display->set_pixel = set_pixel;
+  display->get_pixel = get_pixel;
+  display->clear = clear;
+  display->buffer = malloc(SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(uint8_t));
+  return display;
+}
+
+DisplayCtx* init_display() {
   if (!SDL_Init(SDL_INIT_VIDEO)) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s",
                  SDL_GetError());
@@ -48,13 +63,6 @@ DisplayCtx* create_display() {
   return ctx;
 }
 
-void destroy_display(DisplayCtx* ctx) {
-  SDL_DestroyWindow(ctx->window);
-  SDL_DestroyRenderer(ctx->renderer);
-  SDL_Quit();
-  free(ctx);
-}
-
 void render_display(DisplayCtx* ctx, CPU* cpu) {
   void* pixels;
   int pitch;
@@ -66,14 +74,14 @@ void render_display(DisplayCtx* ctx, CPU* cpu) {
   uint32_t* p = (uint32_t*)pixels;
   int row_len = pitch / sizeof(uint32_t);
 
-  // for (size_t y = 0; y < SCREEN_HEIGHT; y++) {
-  //   for (size_t x = 0; x < SCREEN_WIDTH; x++) {
-  //     size_t index = y * SCREEN_WIDTH + x;
-  //     uint8_t pixel = cpu->vrambuffer[index];
-  //     uint32_t color = pixel ? 0xFFFFFFFF : 0x000000FF;
-  //     p[y * row_len + x] = color;
-  //   }
-  // }
+  for (size_t y = 0; y < SCREEN_HEIGHT; y++) {
+    for (size_t x = 0; x < SCREEN_WIDTH; x++) {
+      size_t index = y * SCREEN_WIDTH + x;
+      uint8_t pixel = cpu->display->buffer[index];
+      uint32_t color = pixel ? 0xFFFFFFFF : 0x000000FF;
+      p[y * row_len + x] = color;
+    }
+  }
 
   SDL_UnlockTexture(ctx->texture);
 

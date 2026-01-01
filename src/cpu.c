@@ -1,246 +1,224 @@
 #include "include/cpu.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
+#include <string.h>
+#include "include/data.h"
+
+CPU* init_cpu() {
+  CPU* cpu = malloc(sizeof(CPU));
+  for (int x = 0; x < 80; x++) {
+    cpu->memory[0x50 + x] = font[x];
+  }
+
+  cpu->PC = 0x200;
+  return cpu;
+}
 
 void inc_pc(CPU* cpu) {
-  cpu->reg_PC += 2;
+  cpu->PC += 2;
 }
 
 void cycle(CPU* cpu) {
-  cpu->reg_OPCODE =
-      (cpu->memory[cpu->reg_PC] << 8) | cpu->memory[cpu->reg_PC + 1];
+  uint16_t opcode = cpu->memory[cpu->PC] << 8 | cpu->memory[cpu->PC + 1];
+  uint8_t x = opcode & 0x0F00;
+  uint8_t y = opcode & 0x00F0;
+  uint8_t N = opcode & 0x000F;
+  uint8_t NN = opcode & 0x00FF;
+  uint8_t NNN = opcode & 0x0FFF;
+  inc_pc(cpu);
 
-  // printf("%d\n", cpu->reg_OPCODE);
-  switch (cpu->reg_OPCODE >> 12) {
+  printf("%04X\n", opcode);
+  // printf("---%X\n", opcode >> 12);
+
+  switch (opcode >> 12) {
     case 0x0: {
-      if (cpu->reg_OPCODE == 0x00E0) {  // clear screen
-        cpu->display->clear(cpu->display);
-      } else if (cpu->reg_OPCODE == 0x00EE) {  // return from subroutine
-        cpu->reg_SP--;
-        cpu->reg_PC = cpu->stack[cpu->reg_SP];
+      if (NN == 0xEE) {
+        cpu->PC = cpu->stack[cpu->SP--];
+      } else if (NN == 0xE0) {
+        memset(cpu->vram, 0, 64 * 32);
+      } else {
+        // SKIPPED THIS INSTRUCTION
+        // cpu->PC = opcode & 0x0FFF;
       }
-      inc_pc(cpu);
       break;
-    };
-    case 0x1: {  // jump to address
-      cpu->reg_PC = cpu->reg_OPCODE & 0x0FFF;
+    }
+    case 0x1: {
+      cpu->PC = NNN;
       break;
-    };
-    case 0x2: {  // execute subroutine
-      cpu->stack[cpu->reg_SP] = cpu->reg_PC;
-      cpu->reg_SP++;
-      cpu->reg_PC = cpu->reg_OPCODE & 0x0fff;
+    }
+    case 0x2: {
+      cpu->stack[cpu->SP++] = cpu->PC;
+      cpu->PC = NNN;
       break;
-    };
-    case 0x3: {  // skip instruction in vX for nn
-      if (cpu->reg_gen[(cpu->reg_OPCODE & 0x0F00) >> 8] ==
-          (cpu->reg_OPCODE & 0x00FF)) {
+    }
+    case 0x3: {
+      if (cpu->V[x] == NN)
         inc_pc(cpu);
-      };
-      inc_pc(cpu);
       break;
-    };
-    case 0x4: {  // skip instruction in vX for not nn
-      if (cpu->reg_gen[(cpu->reg_OPCODE & 0x0F00) >> 8] !=
-          (cpu->reg_OPCODE & 0x00FF)) {
+    }
+    case 0x4: {
+      if (cpu->V[x] != NN)
         inc_pc(cpu);
-      };
-      inc_pc(cpu);
       break;
-    };
-    case 0x5: {  // skip instruction if value in vX for vY
-      if (cpu->reg_gen[(cpu->reg_OPCODE & 0x0F00) >> 8] ==
-          cpu->reg_gen[(cpu->reg_OPCODE & 0x00F0) >> 4]) {
+    }
+    case 0x5: {
+      if (cpu->V[x] == cpu->V[y])
         inc_pc(cpu);
-      };
-      inc_pc(cpu);
       break;
-    };
-    case 0x6: {  // Assign vX nn
-      cpu->reg_gen[(cpu->reg_OPCODE & 0x0F00) >> 8] =
-          (cpu->reg_OPCODE & 0x00FF);
-      inc_pc(cpu);
+    }
+    case 0x6: {
+      cpu->V[x] = NN;
       break;
-    };
-    case 0x7: {  // Add nn to vX
-      cpu->reg_gen[(cpu->reg_OPCODE & 0x0F00) >> 8] += cpu->reg_OPCODE & 0x00FF;
-      inc_pc(cpu);
+    }
+    case 0x7: {
+      cpu->V[x] += NN;
       break;
-    };
+    }
     case 0x8: {
-      uint8_t reg_x = (cpu->reg_OPCODE & 0x0F00) >> 8;
-      uint8_t reg_y = (cpu->reg_OPCODE & 0x00F0) >> 4;
-
-      switch (cpu->reg_OPCODE & 0x000F) {
-        case 0x0: {
-          cpu->reg_gen[reg_x] = cpu->reg_gen[reg_y];
+      switch (N) {
+        case 0: {
+          cpu->V[x] = cpu->V[y];
           break;
         }
-        case 0x1: {
-          cpu->reg_gen[reg_x] |= cpu->reg_gen[reg_y];
+        case 1: {
+          cpu->V[x] |= cpu->V[y];
           break;
         }
-        case 0x2: {
-          cpu->reg_gen[reg_x] &= cpu->reg_gen[reg_y];
+        case 2: {
+          cpu->V[x] &= cpu->V[y];
           break;
         }
-        case 0x3: {
-          cpu->reg_gen[reg_x] ^= cpu->reg_gen[reg_y];
+        case 3: {
+          cpu->V[x] ^= cpu->V[y];
           break;
         }
-        case 0x4: {
-          const uint8_t sum = cpu->reg_gen[reg_x] + cpu->reg_gen[reg_y];
-          cpu->reg_gen[0xf] = sum > 0xff ? 1 : 0;
-          cpu->reg_gen[reg_x] = sum;
+        case 4: {
+          cpu->V[x] += cpu->V[y];
+          cpu->V[0xF] = cpu->V[y] > cpu->V[x];
           break;
         }
-        case 0x5: {
-          cpu->reg_gen[0xf] = cpu->reg_gen[reg_y] < cpu->reg_gen[reg_x];
-          cpu->reg_gen[reg_x] = cpu->reg_gen[reg_x] - cpu->reg_gen[reg_y];
+        case 5: {
+          cpu->V[0xF] = cpu->V[x] >= cpu->V[y];
+          cpu->V[x] -= cpu->V[y];
           break;
         }
-        case 0x6: {
-          cpu->reg_gen[0xf] = cpu->reg_gen[reg_y] & 0x01;
-          cpu->reg_gen[reg_x] = cpu->reg_gen[reg_y] >> 1;
+        case 6: {
+          cpu->V[0xF] = cpu->V[y] & 1;
+          cpu->V[x] = cpu->V[y] >> 1;
           break;
         }
-        case 0x7: {
-          cpu->reg_gen[0xf] = cpu->reg_gen[reg_y] < cpu->reg_gen[reg_x];
-          cpu->reg_gen[reg_x] = cpu->reg_gen[reg_y] - cpu->reg_gen[reg_x];
+        case 7: {
+          cpu->V[0xF] = cpu->V[y] >= cpu->V[x];
+          cpu->V[x] = cpu->V[y] - cpu->V[y];
           break;
         }
         case 0xE: {
-          cpu->reg_gen[0xf] = cpu->reg_gen[reg_y] >> 7;
-          cpu->reg_gen[reg_x] = cpu->reg_gen[reg_y] << 1;
+          cpu->V[0xF] = (cpu->V[y] >> 7);
+          cpu->V[x] = cpu->V[y] << 1;
           break;
         }
       }
-      inc_pc(cpu);
       break;
-    };
+    }
     case 0x9: {
-      uint8_t reg_x = (cpu->reg_OPCODE & 0x0F00) >> 8;
-      uint8_t reg_y = (cpu->reg_OPCODE & 0x00F0) >> 4;
-      if (reg_x != reg_y) {
+      if (cpu->V[x] != cpu->V[y])
         inc_pc(cpu);
-      }
-      inc_pc(cpu);
       break;
-    };
+    }
     case 0xA: {
-      cpu->reg_I = cpu->reg_OPCODE & 0x0FFF;
-      inc_pc(cpu);
+      cpu->I = NNN;
       break;
-    };
+    }
     case 0xB: {
-      cpu->reg_PC = cpu->reg_OPCODE & 0x0FFF + cpu->reg_gen[0x0];
-      inc_pc(cpu);
+      cpu->PC = NNN + cpu->V[0];
       break;
-    };
-    case 0xC: {  // set vX to a random number with bitmask nn
-      cpu->reg_gen[(cpu->reg_OPCODE & 0x0f00) >> 8] =
-          rand() & (cpu->reg_OPCODE & 0x0ff);
-      inc_pc(cpu);
+    }
+    case 0xC: {
+      cpu->V[x] = rand() & NN;
       break;
-    };
-    case 0xD: {  // graphics
-      cpu->reg_gen[0xf] = 0;
-      const uint8_t reg_x = (cpu->reg_OPCODE & 0x0F00) >> 8;
-      const uint8_t reg_y = (cpu->reg_OPCODE & 0x00F0) >> 4;
-      const uint8_t rows = (cpu->reg_OPCODE & 0x000F);
+    }
+    case 0xD: {
+      uint8_t x_coord = cpu->V[x] % 64;
+      uint8_t y_coord = cpu->V[y] % 32;
+      cpu->V[0xF] = 0;
 
-      for (uint8_t p = 0; p < rows; p++) {
-        const uint8_t data = cpu->memory[cpu->reg_I + p];
+      for (uint16_t row = 0; row < N; row++) {
+        uint8_t data = cpu->memory[cpu->I + row];
 
-        for (uint8_t q = 0; q < 8; q++) {
-          uint8_t bit = (data >> (7 - q)) & 0x01;
-          if (bit) {
-            uint8_t px = (reg_y + q) % SCREEN_WIDTH;
-            uint8_t py = (reg_x + p) % SCREEN_HEIGHT;
-            uint8_t index = py * SCREEN_WIDTH + px;
+        for (uint8_t col = 0; col < 8; col++) {
+          uint8_t pixel = data & (0x80 >> col);
+          uint32_t pitch = (y_coord + row) * 64;
 
-            uint8_t _pixel = cpu->display->get_pixel(cpu->display, index);
-            cpu->display->set_pixel(cpu->display, index, _pixel ^= 1);
-
-            if (_pixel) {
-              cpu->reg_gen[0xf] = 1;
+          if (pixel) {
+            if (cpu->vram[x_coord + col + pitch]) {
+              cpu->V[0xF] = 1;
+              cpu->vram[x_coord + col + pitch] = 0;
+            } else if (!cpu->vram[x_coord + col + pitch]) {
+              cpu->vram[x_coord + col + pitch] = 1;
             }
           }
-        }
-      }
 
-      inc_pc(cpu);
+          if (x_coord == 63)
+            break;
+          x_coord++;
+        }
+        y_coord++;
+        if (y_coord == 31)
+          break;
+      }
       break;
-    };
+    }
     case 0xE: {
-      uint8_t reg_x = (cpu->reg_OPCODE & 0x0F00) >> 8;
-
-      switch (cpu->reg_OPCODE & 0x00FF) {
-        case 0x9E: {
-          if (cpu->keys[cpu->reg_gen[reg_x]])
-            inc_pc(cpu);
-          break;
-        }
-        case 0xA1: {
-          if (!cpu->keys[cpu->reg_gen[reg_x]])
-            inc_pc(cpu);
-          break;
-        }
-      }
-      inc_pc(cpu);
       break;
-    };
+    }
     case 0xF: {
-      uint8_t reg_x = (cpu->reg_OPCODE & 0x0F00) >> 8;
-
-      switch (cpu->reg_OPCODE & 0x00FF) {
-        case 0x07: {
-          cpu->reg_gen[reg_x] = cpu->delay_timer;
+      switch (NN) {
+        case 0x7: {
+          cpu->V[x] = cpu->delay_timer;
           break;
         }
-        case 0x0A: {  // keyboard input
+        case 0xA: {
           break;
         }
         case 0x15: {
-          cpu->delay_timer = cpu->reg_gen[reg_x];
+          cpu->delay_timer = cpu->V[x];
           break;
         }
         case 0x18: {
-          cpu->sound_timer = cpu->reg_gen[reg_x];
+          cpu->sound_timer = cpu->V[x];
           break;
         }
         case 0x1E: {
-          cpu->reg_I += cpu->reg_gen[reg_x];
+          cpu->I += cpu->V[x];
           break;
         }
-        case 0x29: {  // sprites?
-          cpu->reg_I = cpu->reg_gen[reg_x];
+        case 0x29: {
+          cpu->I = cpu->V[x] * 5;
           break;
         }
         case 0x33: {
-          cpu->memory[cpu->reg_I] = cpu->reg_gen[reg_x] / 100;
-          cpu->memory[cpu->reg_I + 1] = (cpu->reg_gen[reg_x] / 10) % 10;
-          cpu->memory[cpu->reg_I + 2] = cpu->reg_gen[reg_x] % 10;
+          cpu->memory[cpu->I] = cpu->V[x] / 100;
+          cpu->memory[cpu->I + 1] = (cpu->V[x] / 10) % 10;
+          cpu->memory[cpu->I + 2] = cpu->V[x] % 10;
           break;
         }
-        case 0x55: {  // store values from v0 to vX
-          for (uint8_t p = 0; p < reg_x; p++) {
-            cpu->memory[cpu->reg_I + p] = cpu->reg_gen[p];
-          }
-          cpu->reg_I += reg_x + 1;
+        case 0x55: {
+          for (uint8_t p = 0; p < x + 1; p++) {
+            cpu->memory[cpu->I + p] = cpu->V[p];
+          };
+          cpu->I += x + 1;
           break;
         }
-        case 0x65: {  // load values from v0 to vX
-          for (uint8_t p = 0; p < reg_x; p++) {
-            cpu->reg_gen[p] = cpu->memory[cpu->reg_I + p];
-          }
-          cpu->reg_I += reg_x + 1;
+        case 0x65: {
+          for (uint8_t p = 0; p < x + 1; p++) {
+            cpu->V[p] = cpu->memory[cpu->I + p];
+          };
+          cpu->I += x + 1;
           break;
         }
       }
-      inc_pc(cpu);
       break;
-    };
+    }
   }
 }

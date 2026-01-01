@@ -3,12 +3,14 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "include/cpu.h"
-#include "include/data.h"
 #include "include/display.h"
 
-const int SCREEN_WIDTH = 64;
-const int SCREEN_HEIGHT = 32;
+const int SCREEN_WIDTH = 64 * 10;
+const int SCREEN_HEIGHT = 32 * 10;
+
+void render_display(DisplayCtx* ctx, CPU* cpu);
 
 int main(int argc, char** argv) {
   if (argc != 2) {
@@ -16,24 +18,10 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  DisplayCtx* ctx = init_display();
-  CPU cpu;
-  cpu.reg_PC = 0x200;
-  cpu.display = create_display();
-  for (uint8_t i = 0; i < 80; i++)
-    cpu.memory[i] = font[i];
+  CPU* cpu = init_cpu();
+  load_rom(cpu, argv[1]);
 
-  FILE* fp = fopen(argv[1], "rb");
-  if (!fp) {
-    printf("File opening failed\n");
-    return 1;
-  }
-
-  int byte;
-  size_t c = 0;
-  while ((byte = fgetc(fp)) != EOF && c < 0xFFE - 0x200) {
-    cpu.memory[0x200 + c++] = (uint8_t)byte;
-  }
+  DisplayCtx* ctx = create_display();
 
   SDL_Event event;
   bool running = true;
@@ -44,18 +32,12 @@ int main(int argc, char** argv) {
         break;
       }
     }
-
-    cycle(&cpu);
-
-    render_display(ctx, &cpu);
-
-    SDL_Delay(16);
+    cycle(cpu);
+    render_display(ctx, cpu);
+    SDL_Delay(32);
   }
 
-  SDL_DestroyRenderer(ctx->renderer);
-  SDL_Quit();
-  free(cpu.display->buffer);
-  free(cpu.display);
-  free(ctx);
+  destroy_display(ctx);
+  free(cpu);
   return 0;
 }
