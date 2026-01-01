@@ -33,7 +33,8 @@ void cycle(CPU* cpu) {
   switch (opcode >> 12) {
     case 0x0: {
       if (NN == 0xEE) {
-        cpu->PC = cpu->stack[cpu->SP--];
+        if (cpu->SP > 0)
+          cpu->PC = cpu->stack[--cpu->SP];
       } else if (NN == 0xE0) {
         memset(cpu->vram, 0, 64 * 32);
       } else {
@@ -47,7 +48,9 @@ void cycle(CPU* cpu) {
       break;
     }
     case 0x2: {
-      cpu->stack[cpu->SP++] = cpu->PC;
+      if (cpu->SP < 16) {
+        cpu->stack[cpu->SP++] = cpu->PC;
+      }
       cpu->PC = NNN;
       break;
     }
@@ -109,7 +112,7 @@ void cycle(CPU* cpu) {
         }
         case 7: {
           cpu->V[0xF] = cpu->V[y] >= cpu->V[x];
-          cpu->V[x] = cpu->V[y] - cpu->V[y];
+          cpu->V[x] = cpu->V[y] - cpu->V[x];
           break;
         }
         case 0xE: {
@@ -162,6 +165,11 @@ void cycle(CPU* cpu) {
       break;
     }
     case 0xE: {
+      if (NN == 0x9E && cpu->keys[cpu->V[x]]) {
+        inc_pc(cpu);
+      } else if (NN == 0xA1 && !cpu->keys[cpu->V[x]]) {
+        inc_pc(cpu);
+      }
       break;
     }
     case 0xF: {

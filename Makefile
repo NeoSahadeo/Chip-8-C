@@ -21,7 +21,7 @@ DIR_DUP     = mkdir -p $(@D)
 all: $(NAME)
 
 dev: $(NAME)
-	./main src/roms/IBM\ Logo.ch8
+	./main src/roms/3-corax+.ch8
 
 $(NAME): $(OBJS)
 	$(CC) $(OBJS) $(LDLIBS) -o $(NAME)
