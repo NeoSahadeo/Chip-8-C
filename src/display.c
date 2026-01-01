@@ -55,6 +55,11 @@ void destroy_display(DisplayCtx* ctx) {
   free(ctx);
 }
 
+const int chip_w = 64;
+const int chip_h = 32;
+const int scale_x = 640 / chip_w;
+const int scale_y = 320 / chip_h;
+
 void render_display(DisplayCtx* ctx, CPU* cpu) {
   void* pixels;
   int pitch;
@@ -66,14 +71,23 @@ void render_display(DisplayCtx* ctx, CPU* cpu) {
   uint32_t* p = (uint32_t*)pixels;
   int row_len = pitch / sizeof(uint32_t);
 
-  // for (size_t y = 0; y < SCREEN_HEIGHT; y++) {
-  //   for (size_t x = 0; x < SCREEN_WIDTH; x++) {
-  //     size_t index = y * SCREEN_WIDTH + x;
-  //     uint8_t pixel = cpu->vrambuffer[index];
-  //     uint32_t color = pixel ? 0xFFFFFFFF : 0x000000FF;
-  //     p[y * row_len + x] = color;
-  //   }
-  // }
+  for (int cy = 0; cy < chip_h; ++cy) {
+    for (int cx = 0; cx < chip_w; ++cx) {
+      uint32_t color = cpu->vram[cy * chip_w + cx] ? 0xFFFFFFFF : 0xFF000000;
+
+      // Top-left of this CHIP-8 pixel in texture space
+      int sx0 = cx * scale_x;
+      int sy0 = cy * scale_y;
+
+      // Fill the scaled block
+      for (int oy = 0; oy < scale_y; ++oy) {
+        uint32_t* row = p + (sy0 + oy) * row_len + sx0;
+        for (int ox = 0; ox < scale_x; ++ox) {
+          row[ox] = color;
+        }
+      }
+    }
+  }
 
   SDL_UnlockTexture(ctx->texture);
 
