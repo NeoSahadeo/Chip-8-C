@@ -1,4 +1,5 @@
 #include "include/cpu.h"
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -182,6 +183,22 @@ void cycle(CPU* cpu) {
           break;
         }
         case 0xA: {
+          for (uint8_t i = 0; i < 16; i++) {
+            if (cpu->keys[i]) {
+              cpu->V[x] = i;
+              cpu->delay_timer = 1;
+              break;
+            }
+          }
+
+          if (!cpu->keys[cpu->V[x]]) {
+            cpu->delay_timer = 0;
+            break;
+          }
+
+          if (cpu->delay_timer != 0)
+            cpu->PC -= 2;
+
           break;
         }
         case 0x15: {
