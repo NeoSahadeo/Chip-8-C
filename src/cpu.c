@@ -78,6 +78,9 @@ void cycle(CPU* cpu) {
       break;
     }
     case 0x8: {
+      uint8_t oldx = cpu->V[x];
+      uint8_t oldy = cpu->V[y];
+
       switch (N) {
         case 0: {
           cpu->V[x] = cpu->V[y];
@@ -101,23 +104,23 @@ void cycle(CPU* cpu) {
           break;
         }
         case 5: {
-          cpu->V[0xF] = cpu->V[x] >= cpu->V[y];
-          cpu->V[x] -= cpu->V[y];
+          cpu->V[x] = oldx - oldy;
+          cpu->V[0xF] = oldx >= oldy;
           break;
         }
         case 6: {
-          cpu->V[0xF] = cpu->V[y] & 1;
           cpu->V[x] = cpu->V[y] >> 1;
+          cpu->V[0xF] = oldy & 1;
           break;
         }
         case 7: {
-          cpu->V[0xF] = cpu->V[y] >= cpu->V[x];
-          cpu->V[x] = cpu->V[y] - cpu->V[x];
+          cpu->V[x] = oldy - oldx;
+          cpu->V[0xF] = oldy >= oldx;
           break;
         }
         case 0xE: {
-          cpu->V[0xF] = (cpu->V[y] >> 7);
           cpu->V[x] = cpu->V[y] << 1;
+          cpu->V[0xF] = oldy >> 7;
           break;
         }
       }
