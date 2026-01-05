@@ -27,25 +27,37 @@ int main(int argc, char** argv) {
 
   SDL_Event event;
   bool running = true;
+
   while (running) {
     while (SDL_PollEvent(&event)) {
-      if (event.type == SDL_EVENT_QUIT) {
-        running = false;
-        break;
-      }
-      if (event.type == SDL_EVENT_KEY_DOWN) {
-        uint8_t chip8_key = sdl_to_chip8(event.key.key);
-        if (chip8_key < 16) {
-          cpu->keys[chip8_key] = 1;
+      switch (event.type) {
+        case SDL_EVENT_QUIT: {
+          running = false;
+          break;
         }
-      }
-      if (event.type == SDL_EVENT_KEY_UP) {
-        uint8_t chip8_key = sdl_to_chip8(event.key.key);
-        if (chip8_key < 16) {
-          cpu->keys[chip8_key] = 0;
+        case SDL_EVENT_KEY_DOWN: {
+          uint8_t chip8_key = sdl_to_chip8(event.key.key);
+          if (chip8_key < 16) {
+            cpu->keys[chip8_key] = 1;
+          }
+          break;
         }
+        case SDL_EVENT_KEY_UP: {
+          uint8_t chip8_key = sdl_to_chip8(event.key.key);
+          if (chip8_key < 16) {
+            cpu->keys[chip8_key] = 0;
+          }
+          break;
+        }
+        default:
+          break;
       }
     }
+
+    if (cpu->delay_timer > 0)
+      cpu->delay_timer--;
+    // if (cpu->sound_timer > 0)
+    //   cpu->sound_timer--;
     cycle(cpu);
     render_display(ctx, cpu);
     SDL_Delay(16);

@@ -9,6 +9,7 @@ typedef struct {
   uint8_t keys[16];
   uint16_t stack[16];
 
+  uint8_t key_pressed;
   uint8_t sound_timer;
   uint8_t delay_timer;
 

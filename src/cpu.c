@@ -13,6 +13,7 @@ CPU* init_cpu() {
   }
 
   cpu->PC = 0x200;
+  cpu->key_pressed = 0xFF;
   return cpu;
 }
 
@@ -185,20 +186,17 @@ void cycle(CPU* cpu) {
         case 0xA: {
           for (uint8_t i = 0; i < 16; i++) {
             if (cpu->keys[i]) {
+              cpu->key_pressed = i;
               cpu->V[x] = i;
-              cpu->delay_timer = 1;
               break;
             }
           }
 
-          if (!cpu->keys[cpu->V[x]]) {
-            cpu->delay_timer = 0;
-            break;
-          }
-
-          if (cpu->delay_timer != 0)
+          if (cpu->key_pressed != 0xFF && cpu->keys[cpu->key_pressed] == 0) {
+            cpu->key_pressed = 0xFF;
+          } else {
             cpu->PC -= 2;
-
+          }
           break;
         }
         case 0x15: {
