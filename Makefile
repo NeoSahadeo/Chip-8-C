@@ -21,7 +21,7 @@ DIR_DUP     = mkdir -p $(@D)
 all: $(NAME)
 
 dev: $(NAME)
-	./main src/roms/6-keypad.ch8
+	./main src/roms/7-beep.ch8
 
 $(NAME): $(OBJS)
 	$(CC) $(OBJS) $(LDLIBS) -o $(NAME)

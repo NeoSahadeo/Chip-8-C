@@ -1,10 +1,12 @@
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_audio.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_oldnames.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "include/audio.h"
 #include "include/cpu.h"
 #include "include/data.h"
 #include "include/display.h"
@@ -22,6 +24,9 @@ int main(int argc, char** argv) {
 
   CPU* cpu = init_cpu();
   load_rom(cpu, argv[1]);
+
+  SDL_AudioStream* audiostream = init_audio(&cpu->sound_timer);
+  SDL_ResumeAudioStreamDevice(audiostream);
 
   DisplayCtx* ctx = create_display();
 
@@ -56,13 +61,16 @@ int main(int argc, char** argv) {
 
     if (cpu->delay_timer > 0)
       cpu->delay_timer--;
-    // if (cpu->sound_timer > 0)
-    //   cpu->sound_timer--;
+    if (cpu->sound_timer > 0) {
+      cpu->sound_timer--;
+    }
+
     cycle(cpu);
     render_display(ctx, cpu);
     SDL_Delay(16);
   }
 
+  destroy_audio(audiostream);
   destroy_display(ctx);
   free(cpu);
   return 0;
