@@ -1,11 +1,29 @@
-# Title
+# Chip-8 in C
 
-Desc
+A Chip-8 emulator written in C. It uses SDL3 to render graphics and play audio.
 
 ## Installation
 
+It's built for x86-64 just download `main`.
+
+To build from source:
+
+```bash
+make all
+```
+
 ## Usage
 
-## Contributing
+```bash
+./main [ROM]
+```
+
+__EXAMPLE__
+
+```bash
+./main 1-chip8-logo.ch8
+```
 
 ## License
+
+MIT LICENSE
