@@ -2,6 +2,7 @@
 #include <SDL3/SDL_audio.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_timer.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +30,11 @@ int main(int argc, char** argv) {
   SDL_ResumeAudioStreamDevice(audiostream);
 
   DisplayCtx* ctx = create_display();
+
+  uint IPS = 500;
+  uint FPS = 60;
+  double FRAME_TIME = 1.0 / FPS;
+  uint CYCLES_PER_FRAME = (IPS / FPS);
 
   SDL_Event event;
   bool running = true;
@@ -59,14 +65,18 @@ int main(int argc, char** argv) {
       }
     }
 
+    for (uint x = 0; x < CYCLES_PER_FRAME; x++) {
+      cycle(cpu);
+    }
+
     if (cpu->delay_timer > 0)
       cpu->delay_timer--;
     if (cpu->sound_timer > 0) {
       cpu->sound_timer--;
     }
 
-    cycle(cpu);
     render_display(ctx, cpu);
+
     SDL_Delay(16);
   }
 

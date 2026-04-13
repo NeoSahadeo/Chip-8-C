@@ -6,12 +6,6 @@
 #include <stdlib.h>
 #include "include/cpu.h"
 
-bool get_pixel(uint8_t x, uint8_t y) {
-  return false;
-}
-
-void set_pixel(uint8_t x, uint8_t y, bool v) {}
-
 DisplayCtx* create_display() {
   if (!SDL_Init(SDL_INIT_VIDEO)) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s",

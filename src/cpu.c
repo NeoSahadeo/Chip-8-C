@@ -9,7 +9,7 @@
 CPU* init_cpu() {
   CPU* cpu = malloc(sizeof(CPU));
   for (int x = 0; x < 80; x++) {
-    cpu->memory[0x50 + x] = font[x];
+    cpu->memory[x] = font[x];
   }
 
   cpu->PC = 0x200;
@@ -90,14 +90,17 @@ void cycle(CPU* cpu) {
         }
         case 1: {
           cpu->V[x] |= cpu->V[y];
+          cpu->V[0xF] = 0;
           break;
         }
         case 2: {
           cpu->V[x] &= cpu->V[y];
+          cpu->V[0xF] = 0;
           break;
         }
         case 3: {
           cpu->V[x] ^= cpu->V[y];
+          cpu->V[0xF] = 0;
           break;
         }
         case 4: {
@@ -183,18 +186,18 @@ void cycle(CPU* cpu) {
           cpu->V[x] = cpu->delay_timer;
           break;
         }
+
         case 0xA: {
+          int8_t key_pressed = 0;
           for (uint8_t i = 0; i < 16; i++) {
             if (cpu->keys[i]) {
-              cpu->key_pressed = i;
               cpu->V[x] = i;
+              key_pressed = i;
               break;
             }
           }
 
-          if (cpu->key_pressed != 0xFF && cpu->keys[cpu->key_pressed] == 0) {
-            cpu->key_pressed = 0xFF;
-          } else {
+          if (!key_pressed) {
             cpu->PC -= 2;
           }
           break;
